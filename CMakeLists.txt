@@ -25,6 +25,11 @@ endif()
 # ====================================================================================
 set(PICO_BOARD pico2 CACHE STRING "Board type")
 
+set(TINYUSB_MCU "OPT_MCU_RP2040" CACHE STRING "TinyUSB MCU name")
+add_definitions(-DMBEDTLS_CONFIG_FILE="${CMAKE_SOURCE_DIR}/include/mbedtls-config.h")
+add_definitions(-DCFG_TUSB_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/include/tusb_config.h")
+add_definitions(-DCFG_TUSB_MCU=${TINYUSB_MCU})
+
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
@@ -35,7 +40,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(canokey-pico2 canokey-pico2.c )
+add_executable(canokey-pico2 canokey-pico2.c lfs_init.c nfc_dummy.c device.c)
 
 pico_set_program_name(canokey-pico2 "canokey-pico2")
 pico_set_program_version(canokey-pico2 "0.1")
@@ -43,6 +48,8 @@ pico_set_program_version(canokey-pico2 "0.1")
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(canokey-pico2 0)
 pico_enable_stdio_usb(canokey-pico2 0)
+
+add_subdirectory(canokey-core)
 
 # Add the standard library to the build
 target_link_libraries(canokey-pico2
@@ -55,8 +62,16 @@ target_include_directories(canokey-pico2 PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(canokey-pico2 
+        canokey-core
         hardware_timer
         hardware_clocks
+        hardware_sync
+        pico_unique_id
+        pico_rand
+        pico_sync
+        pico_aon_timer
+        tinyusb_device
+        tinyusb_board
         )
 
 pico_add_extra_outputs(canokey-pico2)

@@ -35,5 +35,17 @@
     "raspberry-pi-pico.cmakeAutoConfigure": true,
     "raspberry-pi-pico.useCmakeTools": false,
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.29.9/bin/cmake",
-    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja"
+    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
+    "files.associations": {
+        "device.h": "c",
+        "nfc.h": "c",
+        "rand.h": "c",
+        "sync.h": "c",
+        "usbd_def.h": "c",
+        "usbd.h": "c",
+        "cstdint": "c",
+        "stddef.h": "c",
+        "stdint.h": "c",
+        "local.h": "c"
+    }
 }

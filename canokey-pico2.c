@@ -1,30 +1,27 @@
 #include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "pico/stdlib.h"
+#include "pico/rand.h"
+#include "pico/sync.h"
 #include "hardware/timer.h"
+#include "hardware/irq.h"
 #include "hardware/clocks.h"
+#include "hardware/sync.h"
+#include "hardware/gpio.h"
 
-int64_t alarm_callback(alarm_id_t id, void *user_data) {
-    // Put your timeout handler code in here
-    return 0;
-}
-
-
-
+#include "device.h"
+#include "rand.h"
+#include "include/local.h"
 
 int main()
 {
     stdio_init_all();
-
-    // Timer example code - This example fires off the callback after 2000ms
-    add_alarm_in_ms(2000, alarm_callback, NULL, false);
-    // For more examples of timer use see https://github.com/raspberrypi/pico-examples/tree/master/timer
-
-    printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
-    printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
-    // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
+    init_pinout();
+    
+    start_periodic_task(100);
 
     while (true) {
-        printf("Hello, world!\n");
-        sleep_ms(1000);
+        device_loop();
     }
 }
