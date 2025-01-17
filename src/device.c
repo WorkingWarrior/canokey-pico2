@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "pico/stdlib.h"
 #include "pico/rand.h"
 #include "pico/sync.h"
@@ -10,8 +11,15 @@
 #include "hardware/sync.h"
 #include "hardware/gpio.h"
 
+#include "bsp/board_api.h"
+
 #include "device.h"
 #include "include/local.h"
+
+#define LONG_PRESS_TIME_MS 1000
+
+static absolute_time_t button_press_start;
+static bool button_was_pressed = false;
 
 static void (*timeout_callback)(void) = NULL;
 static struct repeating_timer timer;
@@ -20,6 +28,28 @@ static bool is_timer_running = false;
 void init_pinout(void) {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+}
+
+static void check_button_state(void) {
+    bool button_pressed = board_button_read();
+    
+    if (button_pressed && !button_was_pressed) {
+        button_press_start = get_absolute_time();
+        button_was_pressed = true;
+    }
+    else if (!button_pressed && button_was_pressed) {
+        int64_t press_duration = absolute_time_diff_us(button_press_start, get_absolute_time()) / 1000;
+        
+        if (press_duration >= LONG_PRESS_TIME_MS) {
+            set_touch_result(TOUCH_LONG);
+        } else {
+            set_touch_result(TOUCH_SHORT);
+        }
+        button_was_pressed = false;
+    }
+    else if (!button_pressed) {
+        set_touch_result(TOUCH_NO);
+    }
 }
 
 void device_delay(int ms) {
@@ -53,15 +83,14 @@ void device_spinlock_unlock(volatile uint32_t *lock) {
 }
 
 void led_on(void) {
-    gpio_put(PICO_DEFAULT_LED_PIN, 1);
+    board_led_on();
 }
 
 void led_off(void) {
-    gpio_put(PICO_DEFAULT_LED_PIN, 0);
+    board_led_off();
 }
 
 static void alarm_callback(uint alarm_num) {
-    // Clear/cancel the alarm
     hardware_alarm_set_target(alarm_num, 0);
     
     if (timeout_callback) {
@@ -70,14 +99,11 @@ static void alarm_callback(uint alarm_num) {
 }
 
 void device_set_timeout(void (*callback)(void), uint16_t timeout) {
-    // Zapisanie callbacka
     timeout_callback = callback;
     
-    // Konfiguracja alarmu
     hardware_alarm_claim(0);
     hardware_alarm_set_callback(0, alarm_callback);
     
-    // Ustawienie alarmu (timeout w ms)
     absolute_time_t target = make_timeout_time_ms(timeout);
     hardware_alarm_set_target(0, target);
 }
@@ -105,6 +131,7 @@ void random_buffer(uint8_t *buf, size_t len) {
 
 static bool periodic_task_callback(struct repeating_timer *t) {
     device_update_led();
+    check_button_state();
 
     return true;
 }

@@ -46,6 +46,14 @@
         "cstdint": "c",
         "stddef.h": "c",
         "stdint.h": "c",
-        "local.h": "c"
+        "local.h": "c",
+        "flash.h": "c",
+        "lfs_init.h": "c",
+        "tusb.h": "c",
+        "unique_id.h": "c",
+        "admin.h": "c",
+        "board_api.h": "c",
+        "board.h": "c",
+        "applets.h": "c"
     }
 }

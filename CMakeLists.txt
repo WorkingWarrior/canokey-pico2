@@ -35,12 +35,20 @@ include(pico_sdk_import.cmake)
 
 project(canokey-pico2 C CXX ASM)
 
+# target_compile_definitions(canokey-pico2 PRIVATE
+#     PICO_SDK_USE_USB=1
+#     PICO_USB=1
+# )
+
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
+file(GLOB SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
+)
 
-add_executable(canokey-pico2 canokey-pico2.c lfs_init.c nfc_dummy.c device.c)
+# Add executable. Default name is the project name, version 0.1
+add_executable(canokey-pico2 ${SRCS})
 
 pico_set_program_name(canokey-pico2 "canokey-pico2")
 pico_set_program_version(canokey-pico2 "0.1")
@@ -48,6 +56,15 @@ pico_set_program_version(canokey-pico2 "0.1")
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(canokey-pico2 0)
 pico_enable_stdio_usb(canokey-pico2 0)
+
+add_dependencies(canokey-pico2 gitrev)
+set(gitrev_in include/git-rev.h.in)
+set(gitrev include/git-rev.h)
+add_custom_target(gitrev
+        ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_SOURCE_DIR}/${gitrev}
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${gitrev_in} ${CMAKE_CURRENT_SOURCE_DIR}/${gitrev}
+        COMMAND git describe --always --tags --long --abbrev=8 --dirty >> ${CMAKE_CURRENT_SOURCE_DIR}/${gitrev}
+        )
 
 add_subdirectory(canokey-core)
 
