@@ -81,7 +81,6 @@ void USBD_LL_Init_Done(USBD_HandleTypeDef *pdev) {
     pdev->dev_config = 1;
     pdev->dev_config_status = 1;
     
-    // Zresetuj endpoint kontrolny
     pdev->ep0_state = USBD_EP0_IDLE;
     pdev->ep0_data_len = 0;
     

@@ -4,16 +4,13 @@
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 
-/* Constants */
 #define FS_SIZE (1.8 * 1024 * 1024)
 
-/* Helper Functions */
 static uint32_t fs_base(const struct lfs_config *c) {
     uint32_t storage_size = c->block_count * c->block_size;
     return PICO_FLASH_SIZE_BYTES - storage_size;
 }
 
-/* Flash Operations */
 static int pico_read(const struct lfs_config *c,
                     lfs_block_t block,
                     lfs_off_t off,
@@ -53,7 +50,6 @@ static int pico_sync(const struct lfs_config *c) {
     return 0;
 }
 
-/* LittleFS Configuration */
 const struct lfs_config lfs_pico_flash_config = {
     .read           = pico_read,
     .prog           = pico_prog,
@@ -68,7 +64,6 @@ const struct lfs_config lfs_pico_flash_config = {
     .block_cycles   = 500,
 };
 
-/* Mounting Functions */
 static bool try_mount(void) {
     return (fs_mount(&lfs_pico_flash_config) == MOUNT_SUCCESS);
 }
@@ -79,7 +74,6 @@ static void handle_mount_failure(void) {
     }
 }
 
-/* Public Interface */
 void littlefs_init(void) {
     for(int retry = 0; retry < MAX_MOUNT_RETRIES; retry++) {
         if(try_mount()) {

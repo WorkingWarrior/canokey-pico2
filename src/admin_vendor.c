@@ -59,13 +59,10 @@ int admin_vendor_hw_sn(const CAPDU *capdu, RAPDU *rapdu)
     UNUSED(capdu);
     pico_unique_board_id_t board_id;
 
-    // Pobierz unique ID
     pico_get_unique_board_id(&board_id);
 
-    // Skopiuj ID do odpowiedzi
     memcpy(RDATA, board_id.id, UNIQUE_ID_SIZE_BYTES);
     
-    // Ustaw długość odpowiedzi
     LL = (UNIQUE_ID_SIZE_BYTES > LE) ? LE : UNIQUE_ID_SIZE_BYTES;
 
     return 0;

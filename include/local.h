@@ -3,10 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// GPIO initialization
 void init_pinout(void);
 
-// Periodic task management
 void start_periodic_task(uint32_t period_ms);
 void stop_periodic_task(void);
 #endif /* LOCAL_H */
