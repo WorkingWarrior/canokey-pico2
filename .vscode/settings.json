@@ -54,6 +54,9 @@
         "admin.h": "c",
         "board_api.h": "c",
         "board.h": "c",
-        "applets.h": "c"
+        "applets.h": "c",
+        "ctaphid.h": "c",
+        "usb_device.h": "c",
+        "common.h": "c"
     }
 }

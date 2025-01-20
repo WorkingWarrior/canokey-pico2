@@ -56,8 +56,6 @@ extern "C" {
 #ifndef CFG_TUSB_OS
 #if CFG_TUSB_MCU == OPT_MCU_RP2040
 #define CFG_TUSB_OS           OPT_OS_PICO
-#elif CFG_TUSB_MCU == OPT_MCU_ESP32S2 || CFG_TUSB_MCU == OPT_MCU_ESP32S3
-#define CFG_TUSB_OS           OPT_OS_FREERTOS
 #endif
 #endif
 
@@ -98,23 +96,27 @@ extern "C" {
 #define CFG_TUD_ENDPOINT0_SIZE    64
 #endif
 
-#define CFG_TUD_VENDOR_RX_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)
-#define CFG_TUD_VENDOR_TX_BUFSIZE 2048
-
 //------------- CLASS -------------//
+#define CFG_TUD_HID               2
 #define CFG_TUD_CDC               0
 #define CFG_TUD_MSC               0
-#ifdef USB_ITF_HID
-#define CFG_TUD_HID               2
-#else
-#define CFG_TUD_HID               0
-#endif
 #define CFG_TUD_MIDI              0
-#ifdef USB_ITF_CCID
-#define CFG_TUD_VENDOR            2
-#else
-#define CFG_TUD_VENDOR            0
-#endif
+#define CFG_TUD_CCID              1
+#define CFG_TUD_VENDOR            1
+
+// HID buffer size Should be sufficient to hold ID (if any) + Data
+#define CFG_TUD_CTAPHID_EP_BUFSIZE  64
+#define CFG_TUD_KBDHID_EP_BUFSIZE   8
+
+// Vendor FIFO size of TX and RX, for webusb
+// We only use control transfer, so no need for buffer
+#define CFG_TUD_VENDOR_RX_BUFSIZE 0
+#define CFG_TUD_VENDOR_TX_BUFSIZE 0
+
+// CCID buffer size
+#define CFG_TUD_CCID_EPSIZE 64
+
+#define CFG_TUD_CCID_RX_BUFSIZE 64
 
 // HID buffer size Should be sufficient to hold ID (if any) + Data
 #define CFG_TUD_HID_EP_BUFSIZE    64

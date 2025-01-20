@@ -2,4 +2,4 @@
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
 #define GIT_REV STR(GIT_REV_)
-#define GIT_REV_ \b8a1270a-dirty
+#define GIT_REV_ \3088bc12-dirty

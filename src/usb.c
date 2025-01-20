@@ -22,6 +22,11 @@
 #define USB_INITIAL_INTERFACE_NUM   0
 #define USB_INITIAL_ENDPOINT_NUM    1
 
+enum {
+  HID_ITF_CTAP = 0,
+  HID_ITF_KBD = 1
+};
+
 typedef enum {
     USBD_EP_FREE = 0,
     USBD_EP_BUSY,
@@ -29,6 +34,14 @@ typedef enum {
 } USBD_EP_StatusTypeDef;
 
 static tusb_desc_endpoint_t ep_desc;
+uint8_t const desc_ctaphid_report[] = {
+  TUD_HID_REPORT_DESC_FIDO_U2F(CFG_TUD_HID_EP_BUFSIZE)
+};
+
+uint8_t const desc_kbdhid_report[] = {
+  TUD_HID_REPORT_DESC_KEYBOARD( HID_REPORT_ID(1) ) ,
+  TUD_HID_REPORT_DESC_CONSUMER( HID_REPORT_ID(2) ) ,
+};
 
 USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev) {
     if (pdev == NULL) return USBD_FAIL;
@@ -251,4 +264,38 @@ void usb_resources_alloc(void) {
     IFACE_TABLE.ccid = iface++;
     EP_TABLE.kbd_hid = ep;
     IFACE_TABLE.kbd_hid = iface;
+}
+
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, 
+                              hid_report_type_t report_type, uint8_t* buffer, 
+                              uint16_t reqlen)
+{
+  if (instance == HID_ITF_CTAP) {
+    return ctap_hid_get_report_cb(report_id, report_type, buffer, reqlen);
+  } else if (instance == HID_ITF_KBD) {
+    return kbd_hid_get_report_cb(report_id, report_type, buffer, reqlen);
+  }
+  return 0;
+}
+
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
+                          hid_report_type_t report_type, uint8_t const* buffer, 
+                          uint16_t bufsize)
+{
+  if (instance == HID_ITF_CTAP) {
+    ctap_hid_set_report_cb(report_id, report_type, buffer, bufsize);
+  } else if (instance == HID_ITF_KBD) {
+    kbd_hid_set_report_cb(report_id, report_type, buffer, bufsize);
+  }
+}
+
+uint8_t const* tud_hid_descriptor_report_cb(uint8_t instance)
+{
+  if (instance == HID_ITF_CTAP) {
+    return desc_ctaphid_report;
+  } else if (instance == HID_ITF_KBD) {
+    return desc_kbdhid_report;
+  }
+
+  return NULL;
 }
