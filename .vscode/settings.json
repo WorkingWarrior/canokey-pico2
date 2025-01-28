@@ -57,6 +57,8 @@
         "applets.h": "c",
         "ctaphid.h": "c",
         "usb_device.h": "c",
-        "common.h": "c"
+        "common.h": "c",
+        "gpio.h": "c",
+        "clocks.h": "c"
     }
 }

@@ -9,35 +9,58 @@
 #include "hardware/clocks.h"
 #include "hardware/sync.h"
 #include "hardware/gpio.h"
-#include "bsp/board_api.h"
 #include "tusb.h"
 
 #include "device.h"
 #include "usb_device.h"
 #include "applets.h"
 #include "apdu.h"
-#include "rand.h"
 #include "include/local.h"
 #include "include/lfs_init.h"
 
+bool led_state = false;
+
+void led_toggle()
+{
+    if(led_state)
+    {
+        led_off();
+        led_state = false;
+    }
+    else
+    {
+        led_on();
+        led_state = true;
+    }
+}
+
 int main()
 {
-    board_init();
+    // Initialize system
+    stdio_init_all();
     init_pinout();
     
+    // Initialize filesystem
     littlefs_init();
+
+    // Initialize USB device
     usb_device_init();
 
-    if (board_init_after_tusb) {
-        board_init_after_tusb();
-    }
-
+    // Install applets after all required systems are initialized
     applets_install();
+
+    // Initialize APDU buffer before applets
     init_apdu_buffer();
 
-    start_periodic_task(100);
+    // Start periodic task for button checks and LED updates
+    start_periodic_task(10);
 
+    // Start LED blinking with 500ms interval
+    start_blinking_interval(0, 500);
+
+    // Main loop
     while (true) {
-        device_loop();
+        device_loop(0);
+        sleep_ms(1);
     }
 }

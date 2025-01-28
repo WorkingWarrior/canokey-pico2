@@ -1,253 +1,14 @@
-#include "tusb.h"
-#include "device/usbd.h"
-#include "device/usbd_pvt.h"
-#include "canokey-core/interfaces/USB/core/inc/usbd_def.h"
 #include <admin.h>
+
 #include <string.h>
 #include <usb_device.h>
-#include "hardware/irq.h"
+#include "tusb.h"
 
-#ifndef CFG_TUD_ENDPOINT_MAX
-#define CFG_TUD_ENDPOINT_MAX 8
-#endif
-
-#define USB_RHPORT_NUM              0
-#define USB_MAX_PACKET_SIZE         64
-#define USB_EP_ATTR_XFER_MASK       0x03
-#define USB_EP_ATTR_SYNC_MASK       0x03
-#define USB_EP_ATTR_USAGE_MASK      0x03
-#define USB_EP_ATTR_SYNC_SHIFT      2
-#define USB_EP_ATTR_USAGE_SHIFT     4
-#define USB_EP_INTERVAL_DEFAULT     0
 #define USB_INITIAL_INTERFACE_NUM   0
 #define USB_INITIAL_ENDPOINT_NUM    1
 
-enum {
-  HID_ITF_CTAP = 0,
-  HID_ITF_KBD = 1
-};
-
-typedef enum {
-    USBD_EP_FREE = 0,
-    USBD_EP_BUSY,
-    USBD_EP_STALL
-} USBD_EP_StatusTypeDef;
-
-static tusb_desc_endpoint_t ep_desc;
-uint8_t const desc_ctaphid_report[] = {
-  TUD_HID_REPORT_DESC_FIDO_U2F(CFG_TUD_HID_EP_BUFSIZE)
-};
-
-uint8_t const desc_kbdhid_report[] = {
-  TUD_HID_REPORT_DESC_KEYBOARD( HID_REPORT_ID(1) ) ,
-  TUD_HID_REPORT_DESC_CONSUMER( HID_REPORT_ID(2) ) ,
-};
-
-USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev) {
-    if (pdev == NULL) return USBD_FAIL;
-
-    pdev->dev_state = USBD_STATE_DEFAULT;
-    pdev->dev_old_state = USBD_STATE_DEFAULT;
-    pdev->dev_config = 0;
-    pdev->dev_config_status = 0;
-    pdev->dev_remote_wakeup = 0;
-    pdev->ep0_state = USBD_EP0_IDLE;
-    pdev->ep0_data_len = 0;
-    pdev->dev_speed = USBD_SPEED_FULL;
-
-    for (uint8_t i = 0; i < USBD_EP_SIZE; i++) {
-        pdev->ep_in[i].status = USBD_EP_FREE;
-        pdev->ep_in[i].total_length = 0;
-        pdev->ep_in[i].rem_length = 0;
-        pdev->ep_in[i].maxpacket = 0;
-
-        pdev->ep_out[i].status = USBD_EP_FREE;
-        pdev->ep_out[i].total_length = 0;
-        pdev->ep_out[i].rem_length = 0;
-        pdev->ep_out[i].maxpacket = 0;
-    }
-
-    return tusb_init() ? USBD_OK : USBD_FAIL;
-}
-
-USBD_StatusTypeDef USBD_LL_DeInit(USBD_HandleTypeDef *pdev) {
-    for (uint8_t i = 0; i < USBD_EP_SIZE; i++) {
-        if (pdev->ep_in[i].status != USBD_EP_FREE) {
-            usbd_edpt_close(USB_RHPORT_NUM, i | TUSB_DIR_IN_MASK);
-            pdev->ep_in[i].status = USBD_EP_FREE;
-        }
-        if (pdev->ep_out[i].status != USBD_EP_FREE) {
-            usbd_edpt_close(USB_RHPORT_NUM, i);
-            pdev->ep_out[i].status = USBD_EP_FREE;
-        }
-    }
-    pdev->dev_state = USBD_STATE_DEFAULT;
-    return USBD_OK;
-}
-
-void USBD_LL_Init_Done(USBD_HandleTypeDef *pdev) {
-    if (pdev == NULL) {
-        return;
-    }
-
-    pdev->dev_state = USBD_STATE_CONFIGURED;
-    pdev->dev_config = 1;
-    pdev->dev_config_status = 1;
-    
-    pdev->ep0_state = USBD_EP0_IDLE;
-    pdev->ep0_data_len = 0;
-    
-    for (uint8_t i = 0; i < USBD_EP_SIZE; i++) {
-        if (pdev->ep_in[i].status == USBD_EP_BUSY) {
-            continue;
-        }
-        pdev->ep_in[i].status = USBD_EP_FREE;
-        
-        if (pdev->ep_out[i].status == USBD_EP_BUSY) {
-            continue;
-        }
-        pdev->ep_out[i].status = USBD_EP_FREE;
-    }
-    
-    irq_set_enabled(USBCTRL_IRQ, true);
-    
-    // tud_connect();
-    
-    pdev->dev_old_state = pdev->dev_state;
-}
-
-USBD_StatusTypeDef USBD_LL_Start(USBD_HandleTypeDef *pdev) {
-    pdev->dev_state = USBD_STATE_DEFAULT;
-    tud_connect();
-    return USBD_OK;
-}
-
-USBD_StatusTypeDef USBD_LL_Stop(USBD_HandleTypeDef *pdev) {
-    pdev->dev_state = USBD_STATE_DEFAULT;
-    tud_disconnect();
-    return USBD_OK;
-}
-
-USBD_StatusTypeDef USBD_LL_OpenEP(USBD_HandleTypeDef *pdev, uint8_t ep_addr, uint8_t ep_type, uint16_t ep_mps) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-
-    ep_desc.bLength = sizeof(tusb_desc_endpoint_t);
-    ep_desc.bDescriptorType = TUSB_DESC_ENDPOINT;
-    ep_desc.bEndpointAddress = ep_addr;
-    ep_desc.bmAttributes.xfer = ep_type & USB_EP_ATTR_XFER_MASK;
-    ep_desc.bmAttributes.sync = (ep_type >> USB_EP_ATTR_SYNC_SHIFT) & USB_EP_ATTR_SYNC_MASK;
-    ep_desc.bmAttributes.usage = (ep_type >> USB_EP_ATTR_USAGE_SHIFT) & USB_EP_ATTR_USAGE_MASK;
-    ep_desc.wMaxPacketSize = ep_mps;
-    ep_desc.bInterval = USB_EP_INTERVAL_DEFAULT;
-
-    if (usbd_edpt_open(USB_RHPORT_NUM, &ep_desc)) {
-        if (is_in) {
-            pdev->ep_in[ep_idx].status = USBD_EP_BUSY;
-            pdev->ep_in[ep_idx].maxpacket = ep_mps;
-            pdev->ep_in[ep_idx].total_length = 0;
-            pdev->ep_in[ep_idx].rem_length = 0;
-        } else {
-            pdev->ep_out[ep_idx].status = USBD_EP_BUSY;
-            pdev->ep_out[ep_idx].maxpacket = ep_mps;
-            pdev->ep_out[ep_idx].total_length = 0;
-            pdev->ep_out[ep_idx].rem_length = 0;
-        }
-        return USBD_OK;
-    }
-    return USBD_FAIL;
-}
-
-USBD_StatusTypeDef USBD_LL_CloseEP(USBD_HandleTypeDef *pdev, uint8_t ep_addr) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-
-    usbd_edpt_close(USB_RHPORT_NUM, ep_addr);
-    if (is_in) {
-        pdev->ep_in[ep_idx].status = USBD_EP_FREE;
-    } else {
-        pdev->ep_out[ep_idx].status = USBD_EP_FREE;
-    }
-    return USBD_OK;
-}
-
-USBD_StatusTypeDef USBD_LL_StallEP(USBD_HandleTypeDef *pdev, uint8_t ep_addr) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-
-    usbd_edpt_stall(USB_RHPORT_NUM, ep_addr);
-    if (is_in) {
-        pdev->ep_in[ep_idx].status = USBD_EP_STALL;
-    } else {
-        pdev->ep_out[ep_idx].status = USBD_EP_STALL;
-    }
-    return USBD_OK;
-}
-
-USBD_StatusTypeDef USBD_LL_ClearStallEP(USBD_HandleTypeDef *pdev, uint8_t ep_addr) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-
-    usbd_edpt_clear_stall(USB_RHPORT_NUM, ep_addr);
-    if (is_in) {
-        pdev->ep_in[ep_idx].status = USBD_EP_BUSY;
-    } else {
-        pdev->ep_out[ep_idx].status = USBD_EP_BUSY;
-    }
-    return USBD_OK;
-}
-
-uint8_t USBD_LL_IsStallEP(USBD_HandleTypeDef *pdev, uint8_t ep_addr) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-    
-    return (is_in ? pdev->ep_in[ep_idx].status : pdev->ep_out[ep_idx].status) == USBD_EP_STALL;
-}
-
-USBD_StatusTypeDef USBD_LL_SetUSBAddress(USBD_HandleTypeDef *pdev, uint8_t dev_addr) {
-    if (dev_addr != 0) {
-        pdev->dev_state = USBD_STATE_ADDRESSED;
-    } else {
-        pdev->dev_state = USBD_STATE_DEFAULT;
-    }
-    return USBD_OK;
-}
-
-static USBD_StatusTypeDef usbd_ll_xfer(USBD_HandleTypeDef *pdev, uint8_t ep_addr, uint8_t *pbuf, uint16_t size) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    bool is_in = tu_edpt_dir(ep_addr) == TUSB_DIR_IN;
-
-    if (usbd_edpt_xfer(USB_RHPORT_NUM, ep_addr, pbuf, size)) {
-        if (is_in) {
-            pdev->ep_in[ep_idx].status = USBD_EP_BUSY;
-            pdev->ep_in[ep_idx].total_length = size;
-            pdev->ep_in[ep_idx].rem_length = size;
-        } else {
-            pdev->ep_out[ep_idx].status = USBD_EP_BUSY;
-            pdev->ep_out[ep_idx].total_length = size;
-            pdev->ep_out[ep_idx].rem_length = size;
-        }
-        return USBD_OK;
-    }
-    return USBD_FAIL;
-}
-
-USBD_StatusTypeDef USBD_LL_Transmit(USBD_HandleTypeDef *pdev, uint8_t ep_addr, uint8_t *pbuf, uint16_t size) {
-    return usbd_ll_xfer(pdev, ep_addr, pbuf, size);
-}
-
-USBD_StatusTypeDef USBD_LL_PrepareReceive(USBD_HandleTypeDef *pdev, uint8_t ep_addr, uint8_t *pbuf, uint16_t size) {
-    return usbd_ll_xfer(pdev, ep_addr, pbuf, size);
-}
-
-uint32_t USBD_LL_GetRxDataSize(USBD_HandleTypeDef *pdev, uint8_t ep_addr) {
-    uint8_t ep_idx = tu_edpt_number(ep_addr);
-    
-    if (ep_idx == 0) {
-        return pdev->ep0_data_len;
-    }
-    
-    return pdev->ep_out[ep_idx].total_length - pdev->ep_out[ep_idx].rem_length;
+void USBD_IRQHandler(void) {
+    tud_int_handler(0);
 }
 
 void usb_resources_alloc(void) {
@@ -266,36 +27,17 @@ void usb_resources_alloc(void) {
     IFACE_TABLE.kbd_hid = iface;
 }
 
-uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, 
-                              hid_report_type_t report_type, uint8_t* buffer, 
-                              uint16_t reqlen)
-{
-  if (instance == HID_ITF_CTAP) {
-    return ctap_hid_get_report_cb(report_id, report_type, buffer, reqlen);
-  } else if (instance == HID_ITF_KBD) {
-    return kbd_hid_get_report_cb(report_id, report_type, buffer, reqlen);
-  }
-  return 0;
-}
-
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
-                          hid_report_type_t report_type, uint8_t const* buffer, 
-                          uint16_t bufsize)
-{
-  if (instance == HID_ITF_CTAP) {
-    ctap_hid_set_report_cb(report_id, report_type, buffer, bufsize);
-  } else if (instance == HID_ITF_KBD) {
-    kbd_hid_set_report_cb(report_id, report_type, buffer, bufsize);
-  }
-}
-
-uint8_t const* tud_hid_descriptor_report_cb(uint8_t instance)
-{
-  if (instance == HID_ITF_CTAP) {
-    return desc_ctaphid_report;
-  } else if (instance == HID_ITF_KBD) {
-    return desc_kbdhid_report;
-  }
-
-  return NULL;
+uint8_t const* tud_descriptor_device_qualifier_cb(void) {
+    static uint8_t qualifier[] = {
+        0x0A,           // bLength
+        0x06,           // bDescriptorType (Device Qualifier)
+        0x10, 0x02,     // bcdUSB 2.1
+        0x00,           // bDeviceClass (Use class information in the Interface Descriptors)
+        0x00,           // bDeviceSubClass
+        0x00,           // bDeviceProtocol
+        64,             // bMaxPacketSize0
+        0x01,           // bNumConfigurations
+        0x00            // bReserved
+    };
+    return qualifier;
 }

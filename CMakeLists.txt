@@ -25,23 +25,33 @@ endif()
 # ====================================================================================
 set(PICO_BOARD pico2 CACHE STRING "Board type")
 
-set(TINYUSB_MCU "OPT_MCU_RP2040" CACHE STRING "TinyUSB MCU name")
-add_definitions(-DMBEDTLS_CONFIG_FILE="${CMAKE_SOURCE_DIR}/include/mbedtls-config.h")
-add_definitions(-DCFG_TUSB_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/include/tusb_config.h")
-add_definitions(-DCFG_TUSB_MCU=${TINYUSB_MCU})
+# Enable USB support in SDK
+set(PICO_SDK_USB_ENABLED 1)
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
+# Enable USB support in SDK
+set(PICO_SDK_USB_ENABLED 1)
+
 project(canokey-pico2 C CXX ASM)
 
-# target_compile_definitions(canokey-pico2 PRIVATE
-#     PICO_SDK_USE_USB=1
-#     PICO_USB=1
-# )
-
-# Initialise the Raspberry Pi Pico SDK
+# Initialize the Raspberry Pi Pico SDK first
 pico_sdk_init()
+
+# Add USB definitions after SDK init
+add_definitions(
+    -DPICO_SDK_USE_USB=1
+    -DPICO_USB=1
+    -DPICO_USB_ENABLE_HOST=0
+    -DPICO_USB_ENABLE_DEVICE=1
+)
+
+set(TINYUSB_MCU "OPT_MCU_RP2040" CACHE STRING "TinyUSB MCU name")
+add_definitions(-DMBEDTLS_CONFIG_FILE="${CMAKE_SOURCE_DIR}/include/mbedtls-config.h")
+add_definitions(-DCFG_TUSB_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/include/tusb_config.h")
+add_definitions(-DCFG_TUSB_MCU=${TINYUSB_MCU})
+add_definitions(-DCFG_TUSB_OS=OPT_OS_PICO)
 
 file(GLOB SRCS
     "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
@@ -66,30 +76,30 @@ add_custom_target(gitrev
         COMMAND git describe --always --tags --long --abbrev=8 --dirty >> ${CMAKE_CURRENT_SOURCE_DIR}/${gitrev}
         )
 
+set(PICO_SDK_PATH "${PICO_SDK_PATH}" CACHE PATH "Path to Pico SDK")
 add_subdirectory(canokey-core)
-
-# Add the standard library to the build
-target_link_libraries(canokey-pico2
-        pico_stdlib)
 
 # Add the standard include files to the build
 target_include_directories(canokey-pico2 PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/canokey-core/interfaces/USB/device
+  ${CMAKE_CURRENT_LIST_DIR}/canokey-core/include
 )
 
 # Add any user requested libraries
 target_link_libraries(canokey-pico2 
+        pico_stdlib
         canokey-core
+        hardware_flash
         hardware_timer
         hardware_clocks
         hardware_sync
+        hardware_watchdog
         pico_unique_id
         pico_rand
         pico_sync
+        pico_time
         pico_aon_timer
-        tinyusb_device
-        tinyusb_board
         )
 
 pico_add_extra_outputs(canokey-pico2)
-

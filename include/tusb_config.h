@@ -53,14 +53,10 @@ extern "C" {
 #error CFG_TUSB_MCU must be defined
 #endif
 
-#ifndef CFG_TUSB_OS
-#if CFG_TUSB_MCU == OPT_MCU_RP2040
-#define CFG_TUSB_OS           OPT_OS_PICO
-#endif
-#endif
+#define CFG_TUSB_OS OPT_OS_PICO
 
 #ifndef CFG_TUSB_RHPORT0_MODE
-#define CFG_TUSB_RHPORT0_MODE    (OPT_MODE_DEVICE | OPT_MODE_FULL_SPEED)
+#define CFG_TUSB_RHPORT0_MODE    OPT_MODE_DEVICE
 #endif
 
 #ifndef CFG_TUSB_DEBUG
@@ -126,6 +122,10 @@ extern "C" {
 
 // CDC Endpoint transfer buffer size, more is faster
 #define CFG_TUD_CDC_EP_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
+
+#ifndef TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX
+#define TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX 1
+#endif
 
 #ifdef __cplusplus
 }
