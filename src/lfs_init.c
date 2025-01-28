@@ -8,10 +8,9 @@
 #include "hardware/clocks.h"
 #include "device.h"
 
-// #define FS_SIZE (2 * 1024 * 1024)
 #define FS_SIZE (0x40000)
 #define FS_OFFSET (PICO_FLASH_SIZE_BYTES - FS_SIZE)
-#define CACHE_SIZE (256)
+#define CACHE_SIZE FLASH_PAGE_SIZE
 #define LOOKAHEAD_SIZE (0x20)
 
 static uint8_t read_buffer[CACHE_SIZE];

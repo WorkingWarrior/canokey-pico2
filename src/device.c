@@ -18,7 +18,7 @@
 #include "device.h"
 #include "include/local.h"
 
-#define LONG_PRESS_TIME_MS 1000
+#define LONG_PRESS_TIME_MS (1000)
 
 static absolute_time_t button_press_start;
 static bool button_was_pressed = false;
@@ -29,7 +29,6 @@ static bool is_timer_running = false;
 
 void init_pinout(void)
 {
-    // Initialize LED
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 }
@@ -37,26 +36,17 @@ void init_pinout(void)
 bool __no_inline_not_in_flash_func(get_bootsel_button)(void)
 {
     const uint CS_PIN_INDEX = 1;
-
-    // Must disable interrupts, as interrupt handlers may be in flash, and we
-    // are about to temporarily disable flash access!
     uint32_t flags = save_and_disable_interrupts();
 
-    // Set chip select to Hi-Z
     hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
                     GPIO_OVERRIDE_LOW << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
                     IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
 
-    // Note we can't call into any sleep functions in flash right now
     for (volatile int i = 0; i < 1000; ++i)
         ;
 
-    // The HI GPIO registers in SIO can observe and control the 6 QSPI pins.
-    // Note the button pulls the pin *low* when pressed.
     bool button_state = (sio_hw->gpio_hi_in & (1u << CS_PIN_INDEX));
 
-    // Need to restore the state of chip select, else we are going to have a
-    // bad time when we return to code in flash!
     hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
                     GPIO_OVERRIDE_NORMAL << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
                     IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
@@ -103,7 +93,6 @@ static void check_button_state(void)
 void device_delay(int ms) {
     uint32_t start_ms = device_get_tick();
     while(device_get_tick() - start_ms < ms) {
-        // Wait
         tud_task();
     }
 }

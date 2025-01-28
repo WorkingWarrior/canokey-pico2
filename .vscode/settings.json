@@ -59,6 +59,7 @@
         "usb_device.h": "c",
         "common.h": "c",
         "gpio.h": "c",
-        "clocks.h": "c"
+        "clocks.h": "c",
+        "sio.h": "c"
     }
 }
