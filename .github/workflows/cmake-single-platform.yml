@@ -44,6 +44,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         path: canokey-pico2
+        submodules: recursive  # To też pobranie submodułów
 
     - name: Configure CMake
       working-directory: ${{github.workspace}}/canokey-pico2
